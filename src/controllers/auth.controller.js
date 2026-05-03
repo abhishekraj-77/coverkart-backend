@@ -9,14 +9,10 @@ exports.register = async (req, res) => {
   try {
     const { email, password, isAdmin, name, phone, address } = req.body;
 
-    // Check if user exists
     const existing = await User.findOne({ email });
     if (existing) return res.status(400).json({ message: 'Email already exists!' });
 
-    // Encrypt password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Generate verification token
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
     const user = new User({
@@ -31,15 +27,21 @@ exports.register = async (req, res) => {
     });
 
     await user.save();
+    console.log('User saved:', email);
 
-    // Send verification email for non-admin users
     if (!isAdmin) {
-      await sendVerificationEmail(email, verificationToken);
+      try {
+        await sendVerificationEmail(email, verificationToken);
+        console.log('Verification email sent to:', email);
+      } catch (emailErr) {
+        console.log('Email error:', emailErr.message);
+      }
     }
 
     res.status(201).json({ message: 'User created! Please check your email to verify your account.' });
 
   } catch (err) {
+    console.log('Register error:', err.message);
     res.status(400).json({ message: err.message });
   }
 };
@@ -77,7 +79,6 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: 'User not found!' });
 
-    // Check if verified
     if (!user.isVerified) {
       return res.status(400).json({ message: 'Please verify your email first!' });
     }
