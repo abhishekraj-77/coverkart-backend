@@ -1,17 +1,22 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  }
-});
-
 exports.sendVerificationEmail = async (email, token) => {
-  const verifyUrl = `https://coverkart.onrender.com/api/auth/verify/${token}`;
+  console.log('Attempting to send email to:', email);
+  console.log('GMAIL_USER:', process.env.GMAIL_USER);
   
-  await transporter.sendMail({
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS
+    }
+  });
+
+  const verifyUrl = `https://coverkart.onrender.com/api/auth/verify/${token}`;
+
+  const info = await transporter.sendMail({
     from: `"CoverKart" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: '✅ Verify your CoverKart account',
@@ -20,9 +25,9 @@ exports.sendVerificationEmail = async (email, token) => {
         <div style="background: linear-gradient(135deg, #1a1a2e, #e94560); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
           <h1 style="color: white; margin: 0;">🛍️ CoverKart</h1>
         </div>
-        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+        <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px;">
           <h2 style="color: #1a1a2e;">Verify your email</h2>
-          <p style="color: #555;">Click the button below to verify your CoverKart account:</p>
+          <p>Click the button below to verify your CoverKart account:</p>
           <a href="${verifyUrl}" style="display: inline-block; background: #e94560; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-size: 16px; margin: 20px 0;">
             ✅ Verify Account
           </a>
@@ -31,4 +36,6 @@ exports.sendVerificationEmail = async (email, token) => {
       </div>
     `
   });
+
+  console.log('Email sent:', info.messageId);
 };
