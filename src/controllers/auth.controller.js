@@ -2,9 +2,8 @@ const User = require('../models/user.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { sendVerificationEmail } = require('../utils/email');
 
-// Register
+// Register (kept for admin creation via Postman)
 exports.register = async (req, res) => {
   try {
     const { email, password, isAdmin, name, phone, address } = req.body;
@@ -13,7 +12,6 @@ exports.register = async (req, res) => {
     if (existing) return res.status(400).json({ message: 'Email already exists!' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const verificationToken = crypto.randomBytes(32).toString('hex');
 
     const user = new User({
       email,
@@ -22,66 +20,24 @@ exports.register = async (req, res) => {
       name,
       phone,
       address,
-      verificationToken,
-      isVerified: isAdmin ? true : false
+      isVerified: true
     });
 
     await user.save();
-    console.log('User saved:', email);
-
-    if (!isAdmin) {
-      try {
-        await sendVerificationEmail(email, verificationToken);
-        console.log('Verification email sent to:', email);
-      } catch (emailErr) {
-        console.log('Email error:', emailErr.message);
-      }
-    }
-
-    res.status(201).json({ message: 'User created! Please check your email to verify your account.' });
+    res.status(201).json({ message: 'User created successfully!' });
 
   } catch (err) {
-    console.log('Register error:', err.message);
     res.status(400).json({ message: err.message });
   }
 };
 
-// Verify Email
-exports.verifyEmail = async (req, res) => {
-  try {
-    const user = await User.findOne({ verificationToken: req.params.token });
-    if (!user) return res.status(400).json({ message: 'Invalid verification link!' });
-
-    user.isVerified = true;
-    user.verificationToken = '';
-    await user.save();
-
-    res.send(`
-      <div style="font-family: Arial; text-align: center; padding: 50px;">
-        <h1 style="color: #e94560;">🎉 Email Verified!</h1>
-        <p>Your CoverKart account is now active!</p>
-        <a href="https://coverkart-frontend.vercel.app/login" 
-           style="background: #e94560; color: white; padding: 15px 30px; border-radius: 8px; text-decoration: none;">
-          Login Now
-        </a>
-      </div>
-    `);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// Login
+// Login (kept for admin login via old method)
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: 'User not found!' });
-
-    if (!user.isVerified) {
-      return res.status(400).json({ message: 'Please verify your email first!' });
-    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Wrong password!' });
@@ -94,6 +50,17 @@ exports.login = async (req, res) => {
 
     res.json({ token, isAdmin: user.isAdmin });
 
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Check if admin
+exports.checkAdmin = async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) return res.json({ isAdmin: false });
+    res.json({ isAdmin: user.isAdmin });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
